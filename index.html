@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hủy chuyến — Taxi điện Nam Thắng</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes neonPulse{0%,100%{filter:drop-shadow(0 0 0 rgba(163,230,53,0))}50%{filter:drop-shadow(0 0 14px rgba(163,230,53,.9))}}
+    .neon-icon{animation:neonPulse 2.2s ease-in-out infinite}
+    @keyframes shimmer{0%{background-position:0% 50%}100%{background-position:100% 50%}}
+    .shimmer-text{background-size:200% 200%;animation:shimmer 3s linear infinite}
+    .cta-pop{animation:neonPulse 2.2s ease-in-out infinite}
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="max-w-md mx-auto">
+    <!-- Header -->
+    <header class="p-4 sticky top-0 bg-white/90 backdrop-blur z-10 border-b">
+      <div class="flex items-center gap-3">
+        <svg viewBox="0 0 64 48" class="w-10 h-10 neon-icon">
+          <defs>
+            <linearGradient id="evGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#d9f99d"/>
+              <stop offset="50%" stop-color="#a3e635"/>
+              <stop offset="100%" stop-color="#22c55e"/>
+            </linearGradient>
+          </defs>
+          <path d="M12 26h40a4 4 0 0 1 4 4v6H8v-6a4 4 0 0 1 4-4z" fill="url(#evGrad)"/>
+          <path d="M20 26l6-8h12l6 8z" fill="#86efac"/>
+          <circle cx="20" cy="38" r="4" fill="#111827"/>
+          <circle cx="44" cy="38" r="4" fill="#111827"/>
+          <path d="M34 8l-8 14h6l-2 10 10-16h-6l2-8z" fill="#84cc16"/>
+        </svg>
+        <h1 class="text-2xl font-extrabold leading-tight">
+          <span class="bg-gradient-to-r from-lime-400 via-emerald-500 to-lime-500 bg-clip-text text-transparent shimmer-text">
+            Hủy chuyến Taxi điện Nam Thắng
+          </span>
+        </h1>
+      </div>
+    </header>
+
+    <!-- Form -->
+    <form id="cancelForm" class="p-4 space-y-5">
+      <!-- Thông tin -->
+      <section class="bg-white rounded-xl p-4 shadow-sm">
+        <h2 class="text-base font-semibold text-gray-700 mb-3">Thông tin hủy chuyến</h2>
+
+        <label class="text-gray-600 mb-1 block">Mã chuyến (ID) (*)</label>
+        <input id="tripId" name="tripId" required
+               placeholder="Nhập mã chuyến"
+               class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-lime-500 mb-3">
+
+        <label class="text-gray-600 mb-1 block">SĐT đặt xe (*)</label>
+        <input id="phone" name="phone" type="tel" required inputmode="numeric" pattern="^0[0-9]{9,10}$"
+               placeholder="VD: 0912345678"
+               class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-lime-500 mb-3">
+
+        <!-- Province -->
+        <label class="text-gray-600 mb-1 block">Tỉnh/Thành phố (*)</label>
+        <div id="provinceWrapper" class="relative">
+          <input id="provinceSearch" type="text" placeholder="Tìm Tỉnh/Thành phố..."
+                 class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-lime-500">
+          <div id="provinceList" class="absolute left-0 top-full mt-1 z-50 bg-white border rounded-lg w-full max-h-60 overflow-auto shadow-lg hidden"></div>
+          <select id="province" class="hidden">
+            <option value=""></option>
+          </select>
+        </div>
+
+        <label class="text-gray-600 mb-1 block mt-3">Lý do hủy (*)</label>
+        <textarea id="reason" name="reason" rows="3" required placeholder="Ví dụ: đổi lịch, đặt nhầm, không cần nữa..."
+                  class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-lime-500"></textarea>
+      </section>
+
+      <!-- Submit sticky -->
+      <div class="h-24"></div>
+      <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-3">
+        <button type="button" id="openConfirm"
+                class="w-full bg-lime-600 text-white py-3 rounded-lg font-semibold hover:bg-lime-700 transition">
+          ❌ Xác nhận hủy chuyến
+        </button>
+        <p id="submitStatus" class="text-center text-sm mt-2"></p>
+      </div>
+    </form>
+  </div>
+
+  <!-- Modal xác nhận -->
+  <div id="confirmModal" class="fixed inset-0 bg-black/40 hidden items-end sm:items-center justify-center z-50">
+    <div class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-4">
+      <h3 class="text-lg font-semibold mb-3">✍️ Xác nhận hủy chuyến</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <tbody id="confirmTable" class="align-top"></tbody>
+        </table>
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button id="cancelConfirm" class="flex-1 py-2 rounded-lg border">Không</button>
+        <button id="finalSubmit" class="flex-1 py-2 rounded-lg bg-lime-600 text-white font-semibold">✅ Đồng ý hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal thành công -->
+  <div id="successModal" class="fixed inset-0 bg-black/40 hidden items-end sm:items-center justify-center z-50">
+    <div class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl p-4">
+      <h3 class="text-lg font-semibold mb-3">Đã nhận yêu cầu hủy</h3>
+      <p id="successMsg" class="text-sm text-gray-700 whitespace-pre-line"></p>
+      <div class="mt-4">
+        <button id="closeSuccess" class="w-full py-2 rounded-lg bg-lime-600 text-white font-semibold">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ================== CONFIG ================== */
+const scriptURLCancel = "https://script.google.com/macros/s/AKfycbwFg93sSbPGswwPpflY0b4MJV26RGxJzyMuv9U2YOiyIUwucxyzrv8DWXtfX2Cm_JHKuA/exec"; // ← thay URL WebApp của bạn
+let locationsData = {};
+
+/* Tổng đài theo tỉnh (dùng lại bảng số của bạn) */
+function getCallCenterPhone(province) {
+  const phoneNumbers = {
+    'An Giang': '02973 56 56 56',
+    'Cà Mau': '02903 56 56 56',
+    'Hậu Giang': '02973 95 95 95',
+    'Kiên Giang': '02973 69 69 69',
+    'Phú Quốc': '02973 75 75 75',
+    'Bạc Liêu': '02913 75 75 75',
+    'Sóc Trăng': '0299 123 4567',
+    'Vĩnh Long': '02913 59 59 59'
+  };
+  return phoneNumbers[province] || '0938 267 888';
+}
+
+/* ================== LOAD LOCATIONS ================== */
+async function loadLocations() {
+  try {
+    const locRes = await fetch("locations.json");
+    locationsData = await locRes.json();
+
+    // Province options
+    const provinceSelect = document.getElementById("province");
+    provinceSelect.innerHTML = '<option value="">-- Chọn Tỉnh/Thành phố --</option>';
+    Object.keys(locationsData).forEach(tinh => {
+      provinceSelect.innerHTML += `<option value="${tinh}">${tinh}</option>`;
+    });
+
+    buildSearchable("province");
+    prefillFromQuery();
+    restoreFromLocal();
+  } catch (e) {
+    document.getElementById("submitStatus").innerText = "⚠️ Không tải được danh mục tỉnh/thành.";
+    console.error(e);
+  }
+}
+loadLocations();
+
+/* ================== PREFILL FROM QUERY ================== */
+function prefillFromQuery() {
+  const qs = new URLSearchParams(location.search);
+  const setVal = (id, v) => { if (!v) return; const el=document.getElementById(id); if (el) el.value=v; localStorage.setItem(id, v); };
+
+  if (qs.has('trip_id')) setVal('tripId', qs.get('trip_id'));
+  if (qs.has('phone')) {
+    let p = (qs.get('phone')||'').replace(/[^0-9]/g,'');
+    if (p.startsWith('84') && p.length>=11) p = '0'+p.slice(2);
+    if (!p.startsWith('0') && p.length>=9) p = '0'+p;
+    setVal('phone', p);
+  }
+  if (qs.has('province')) setVal('province', qs.get('province'));
+}
+
+/* ================== SEARCHABLE SELECT (province) ================== */
+function buildSearchable(kind) {
+  const search = document.getElementById(`${kind}Search`);
+  const list = document.getElementById(`${kind}List`);
+  const select = document.getElementById(kind);
+
+  function rebuildList() {
+    const q = (search.value || "").toLowerCase().trim();
+    list.innerHTML = "";
+    const options = Array.from(select.options).filter(o => o.value);
+    const filtered = q ? options.filter(o => o.text.toLowerCase().includes(q)) : options;
+    if (!filtered.length) {
+      list.innerHTML = `<div class="px-3 py-2 text-gray-500 text-sm">Không tìm thấy</div>`;
+      return;
+    }
+    filtered.forEach(opt => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "block w-full text-left px-3 py-2 hover:bg-lime-50";
+      btn.textContent = opt.text;
+      btn.addEventListener("mousedown", (ev) => {
+        ev.preventDefault();
+        select.value = opt.value;
+        search.value = opt.text;
+        search.placeholder = "Gõ để tìm...";
+        search.dataset.chosen = "1";
+        list.classList.add("hidden");
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        saveForm();
+      });
+      list.appendChild(btn);
+    });
+  }
+
+  const openList = () => { rebuildList(); list.classList.remove("hidden"); };
+  search.addEventListener("focus", () => { openList(); setTimeout(()=>{ try{ search.select(); }catch(e){} }, 0); });
+  search.addEventListener("click", openList);
+  search.addEventListener("mousedown", openList);
+  search.addEventListener("input", openList);
+  document.addEventListener("click", (e) => {
+    const wrapper = document.getElementById(`${kind}Wrapper`);
+    if (!wrapper.contains(e.target)) list.classList.add("hidden");
+  });
+
+  // Sync display from current selected (không hiển thị option rỗng)
+  const selOpt = select.options[select.selectedIndex];
+  search.value = (selOpt && selOpt.value) ? selOpt.text : "";
+  search.placeholder = "Gõ để tìm...";
+  rebuildList();
+
+  // refresh helper
+  buildSearchable[`refresh_${kind}`] = () => {
+    const selOpt2 = select.options[select.selectedIndex];
+    if (!(search.dataset.chosen === "1")) {
+      search.value = (selOpt2 && selOpt2.value) ? selOpt2.text : "";
+    }
+    search.placeholder = "Gõ để tìm...";
+    rebuildList();
+  };
+}
+
+/* ================== LOCAL STORAGE ================== */
+let saveTimer;
+function saveForm() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    ["tripId","phone","province","reason"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) localStorage.setItem(id, el.value);
+    });
+  }, 150);
+}
+function restoreFromLocal() {
+  const get = k => localStorage.getItem(k) || "";
+  ["tripId","phone","reason"].forEach(id => { const v=get(id); if (v) document.getElementById(id).value=v; });
+
+  // province
+  const pv = get("province");
+  if (pv) {
+    document.getElementById("province").value = pv;
+    if (buildSearchable.refresh_province) buildSearchable.refresh_province();
+  }
+}
+document.querySelectorAll("input,textarea,select").forEach(el => {
+  el.addEventListener("change", saveForm);
+  el.addEventListener("keyup", saveForm);
+});
+
+/* ================== POPUPS ================== */
+function showModal() {
+  const m = document.getElementById("confirmModal");
+  m.classList.remove("hidden"); m.classList.add("flex");
+}
+function hideModal() {
+  const m = document.getElementById("confirmModal");
+  m.classList.add("hidden"); m.classList.remove("flex");
+}
+function showSuccessModal(messageHTML) {
+  document.getElementById("successMsg").innerHTML = messageHTML;
+  const m = document.getElementById("successModal");
+  m.classList.remove("hidden"); m.classList.add("flex");
+}
+function hideSuccessModal() {
+  const m = document.getElementById("successModal");
+  m.classList.add("hidden"); m.classList.remove("flex");
+}
+
+/* ================== CONFIRM FLOW ================== */
+function collectCancelData() {
+  return {
+    tripId: (document.getElementById("tripId").value || "").trim(),
+    phone:  (document.getElementById("phone").value || "").trim(),
+    province: document.getElementById("province").value,
+    reason: (document.getElementById("reason").value || "").trim()
+  };
+}
+function renderConfirmTable(d) {
+  const rows = [
+    ["Mã chuyến", d.tripId],
+    ["SĐT đặt xe", d.phone],
+    ["Tỉnh/TP", d.province],
+    ["Lý do hủy", d.reason]
+  ];
+  document.getElementById("confirmTable").innerHTML = rows
+    .map(([k,v]) => `<tr><td class="py-2 pr-3 text-gray-500">${k}</td><td class="py-2 font-medium">${v}</td></tr>`)
+    .join("");
+}
+
+document.getElementById("openConfirm").addEventListener("click", () => {
+  const d = collectCancelData();
+  const status = document.getElementById("submitStatus");
+  status.innerText = "";
+
+  // VALIDATIONS (tất cả required)
+  if (!d.tripId) { status.innerText = "⚠️ Vui lòng nhập Mã chuyến."; return; }
+  if (!/^0[0-9]{9,10}$/.test(d.phone)) { status.innerText = "⚠️ SĐT phải bắt đầu bằng 0 và có 10–11 số."; return; }
+  if (!d.province) { status.innerText = "⚠️ Vui lòng chọn Tỉnh/Thành phố."; return; }
+  if (!d.reason) { status.innerText = "⚠️ Vui lòng nhập lý do hủy."; return; }
+
+  renderConfirmTable(d);
+  showModal();
+});
+document.getElementById("cancelConfirm").addEventListener("click", hideModal);
+document.getElementById("closeSuccess").addEventListener("click", hideSuccessModal);
+
+/* ================== SUBMIT ================== */
+document.getElementById("finalSubmit").addEventListener("click", submitCancelFinal);
+
+async function submitCancelFinal() {
+  const btn = document.getElementById('finalSubmit');
+  btn.innerHTML = '⏳ Đang gửi...';
+  btn.disabled = true;
+
+  const data = collectCancelData();
+  const callCenterPhone = getCallCenterPhone(data.province);
+
+  try {
+    await fetch(scriptURLCancel, {
+      method: "POST",
+      mode: "no-cors",
+      body: JSON.stringify({
+        action: "cancel",
+        tripId: data.tripId,
+        phone: data.phone,
+        province: data.province,
+        reason: data.reason
+      })
+    });
+
+    hideModal();
+
+    const successMessage =
+      `💡 Yêu cầu hủy mã chuyến <b>${data.tripId}</b> đã được ghi nhận.<br><br>` +
+      `Tổng đài sẽ xử lý và phản hồi sớm nhất.<br><br>` +
+      `Mọi thắc mắc liên hệ tổng đài: <b>${callCenterPhone}</b>`;
+    showSuccessModal(successMessage);
+
+    // reset giữ lại phone & province để thao tác lần sau nhanh hơn
+    const keep = ["phone","province"];
+    Object.keys(localStorage).forEach(k => { if (!keep.includes(k)) localStorage.removeItem(k); });
+    document.getElementById("cancelForm").reset();
+    document.getElementById("submitStatus").innerText = "";
+    if (buildSearchable.refresh_province) buildSearchable.refresh_province();
+
+  } catch (err) {
+    hideModal();
+    document.getElementById("submitStatus").innerText = '❌ Lỗi kết nối. Vui lòng thử lại.';
+    console.error(err);
+  } finally {
+    btn.innerHTML = '✅ Đồng ý hủy';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
